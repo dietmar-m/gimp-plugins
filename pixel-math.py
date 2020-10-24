@@ -23,9 +23,7 @@ def pixel_to_color(bpc,pixel):
 def color_to_pixel(bpc,color):
     pixel=[]
     for c in color:
-        #c=int(c)
         for n in range(0,bpc):
-            #pixel+=[c >> (8*n) & 0xff]
             pixel+=[c & 0xff]
             c>>=8
     return tuple(pixel)
@@ -73,10 +71,7 @@ def calc_layer_old(src, dst, rexpr, gexpr, bexpr):
 # do the calculation for each pixel of a drawable
 def calc_layer(src, dst, rexpr, gexpr, bexpr):
     cols,bpc=color_depth(dst)
-    #print(cols,bpc)
     val_max=2**(8*bpc)
-    #print(val_max)
-    #return
     w=pdb.gimp_drawable_width(dst)
     h=pdb.gimp_drawable_height(dst)
     pdb.gimp_progress_init("working...",None)
@@ -101,16 +96,6 @@ def calc_layer(src, dst, rexpr, gexpr, bexpr):
 
 # plugin-function
 def pixel_math(image, draw, rexpr, gexpr, bexpr, name):
-    #pixel=(0,1,2,3,4,5)
-    #pixel=(0,1,2)
-    #print(pixel)
-    #r,g,b,a=pixel_to_color(2,pixel)
-    #print(r,g,b,a)
-    #color=(0x00,0x0100,0x200)
-    #print(color)
-    #pixel=color_to_pixel(2,color)
-    #print(pixel)
-    #return
     pdb.gimp_plugin_enable_precision()
     layer=pdb.gimp_image_get_layer_by_name(image,name)
     if layer==None:
@@ -118,18 +103,11 @@ def pixel_math(image, draw, rexpr, gexpr, bexpr, name):
                                  pdb.gimp_drawable_width(draw),
                                  pdb.gimp_drawable_height(draw),
                                  pdb.gimp_drawable_type(draw),
-                                 #pdb.gimp_item_get_name(draw)+"-pixel-math",
                                  name,
                                  100,
                                  pdb.gimp_layer_get_mode(draw))
         pdb.gimp_image_insert_layer(image,layer,None,0)
-    #copy_layer(draw,layer)
-    #print(pdb.gimp_drawable_is_rgb(layer))
-    #print(pdb.gimp_drawable_has_alpha(layer))
-    #print(pdb.gimp_drawable_bpp(layer))
-    #print(color_depth(layer))
     calc_layer(draw,layer,rexpr,gexpr,bexpr)
-    pass
 
 # the main-function
 register(
