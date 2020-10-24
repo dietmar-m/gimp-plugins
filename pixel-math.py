@@ -39,35 +39,6 @@ def copy_layer(src, dst):
             pdb.gimp_drawable_set_pixel(dst,x,y,d,p)
         pdb.gimp_progress_update(float(y)/h)
 
-# do the calculation for each pixel of a drawable (old version)
-def calc_layer_old(src, dst, rexpr, gexpr, bexpr):
-    cols,bpc=color_depth(dst)
-    print(cols,bpc)
-    val_max=2^(8*bpc)
-    #val_max=256
-    #rgb=pdb.gimp_drawable_is_rgb(dst)
-    #alpha=pdb.gimp_drawable_has_alpha(dst)
-    w=pdb.gimp_drawable_width(dst)
-    h=pdb.gimp_drawable_height(dst)
-    r=g=b=a=0
-    pdb.gimp_progress_init("working...",None)
-    for y in range(h):
-        for x in range(w):
-            bpp,pixel=pdb.gimp_drawable_get_pixel(src,x,y)
-            r=float(pixel[0])/val_max
-            if cols > 1:
-                g=float(pixel[1])/val_max
-                b=float(pixel[2])/val_max
-            pixel=[eval(rexpr)*val_max]
-            if cols > 1:
-                pixel+=[eval(gexpr)*val_max]
-                pixel+=[eval(bexpr)*val_max]
-            if cols==2 or cols==4:
-                pixel+=[val_max-1]
-            pdb.gimp_drawable_set_pixel(dst,x,y,bpp,pixel)
-            pass
-        pdb.gimp_progress_update(float(y)/h)
-
 # do the calculation for each pixel of a drawable
 def calc_layer(src, dst, rexpr, gexpr, bexpr):
     cols,bpc=color_depth(dst)
@@ -78,11 +49,11 @@ def calc_layer(src, dst, rexpr, gexpr, bexpr):
     for y in range(h):
         for x in range(w):
             bpp,pixel=pdb.gimp_drawable_get_pixel(src,x,y)
-            r,g,b,a=pixel_to_color(bpc,pixel)
-            r=float(r)/val_max
+            R,G,B,A=pixel_to_color(bpc,pixel)
+            R=float(R)/val_max
             if cols > 1:
-                g=float(g)/val_max
-                b=float(b)/val_max
+                G=float(G)/val_max
+                B=float(B)/val_max
             pixel=[int(eval(rexpr)*val_max)]
             if cols > 1:
                 pixel+=[int(eval(gexpr)*val_max)]
@@ -96,6 +67,13 @@ def calc_layer(src, dst, rexpr, gexpr, bexpr):
 
 # plugin-function
 def pixel_math(image, draw, rexpr, gexpr, bexpr, name):
+    try:
+        rexpr=compile(rexpr,"<STRING>","eval")
+        gexpr=compile(gexpr,"<STRING>","eval")
+        bexpr=compile(bexpr,"<STRING>","eval")
+    except:
+        pdb.gimp_message("Error in expression")
+        return
     pdb.gimp_plugin_enable_precision()
     layer=pdb.gimp_image_get_layer_by_name(image,name)
     if layer==None:
@@ -113,18 +91,18 @@ def pixel_math(image, draw, rexpr, gexpr, bexpr, name):
 register(
     "didi_pixel_math",
     "Pixel Math",
-    "Python implementation of Pixel Math",
-    "Dietmar",
+    "Implementation of something like PixInsight's Pixel Math",
+    "Dietmar Muscholik",
     "",
-    "2020",
+    "Oct 2020",
     "Pixel Math",
     "RGB*, GRAY*",
     [
         (PF_IMAGE,    "image",    "Input image",    None),
         (PF_DRAWABLE, "drawable", "Input drawable", None),
-        (PF_STRING,   "red",      "R:",             "r"),
-        (PF_STRING,   "green",    "G:",             "g"),
-        (PF_STRING,   "blue",     "B:",             "b"),
+        (PF_STRING,   "red",      "R:",             "R"),
+        (PF_STRING,   "green",    "G:",             "G"),
+        (PF_STRING,   "blue",     "B:",             "B"),
         (PF_STRING,   "layer",    "Layer:",         ""),
         ],
     [],
