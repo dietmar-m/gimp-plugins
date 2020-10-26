@@ -1,12 +1,22 @@
-#
-#    Implementation of something like PixInsight's Pixel Math
+##
+# \file     gimp-plugins/pixel-math.py
+# \brief    Implementation of something like PixInsight's Pixel Math
+# \author   Dietmar Muscholik <d.muscholik@t-online.de>
+# \date     2020-10-22
+#           started
+# \date     2020-10-24
+#           Expressions are compiled to speed up things a little bit.
+#           Code cleanup.
+#           Copyright notice added.
+# \date     2020-10-26
+#           File header changed to doxygen style
 #
 #    Copyright (C) 2020  Dietmar Muscholik
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
-#    any later version.
+#    (at your option) any later version.
 #
 #    This program is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,6 +25,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 
 from gimpfu import *
 
