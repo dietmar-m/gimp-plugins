@@ -33,6 +33,7 @@
 
 from gimpfu import *
 from array import *
+from time import *
 
 
 # get the number of colors and the bytes per color from a drawable
@@ -106,7 +107,11 @@ def pixel_math(image, draw, rexpr, gexpr, bexpr, name):
                                  100,
                                  pdb.gimp_layer_get_mode(draw))
         pdb.gimp_image_insert_layer(image,layer,None,0)
+
+    t_start=time()
     calc_layer(draw,layer,rexpr,gexpr,bexpr)
+    t_end=time()
+    print(t_end-t_start)
 
 
 # the main-function
