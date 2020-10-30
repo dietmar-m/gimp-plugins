@@ -14,9 +14,11 @@
 #           speed improvement by using regions instead of calling
 #           gimp_drawable_get_pixel() and gimp_drawable_set_pixel()
 #           for each pixel
-# \date     2020-10-30
+# \date     2020-10-29
 #           major speed improvement by converting regions to arrays
 #           as a whole
+# \date     2020-10-20
+#           support for floating point precision added
 #
 #    Copyright (C) 2020  Dietmar Muscholik
 #
@@ -40,30 +42,51 @@ from time import *
 
 
 # get the number of colors and the bytes per color from a drawable
-def color_depth(layer):
-    if layer.is_rgb:
-        cols=3
-    else:
-        cols=1
-    if layer.has_alpha:
-        cols+=1
-    bpc=layer.bpp/cols
-    return cols,bpc
+##def color_depth(layer):
+##    if layer.is_rgb:
+##        cols=3
+##    else:
+##        cols=1
+##    if layer.has_alpha:
+##        cols+=1
+##    bpc=layer.bpp/cols
+##    return cols,bpc
 
 
 # do the calculation for each pixel of a drawable
 def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
-    cols,bpc=color_depth(layer_dst)
-    val_max=2**(8*bpc)
-    if bpc==1: typecode='B'
-    elif bpc==2: typecode='H'
-    elif bpc==4: typecode='L'
-    else: raise TypeError("Invalid size for pixel value")
+    prec=pdb.gimp_image_get_precision(layer_src.image)
+##    pdb.gimp_message("precision="+str(prec))
+##    pdb.gimp_message("bpp="+str(layer_src.bpp))
+    if prec in [100,150]:
+        typecode='B'
+        val_max=2**8
+    elif prec in [200,250]:
+        typecode='H'
+        val_max=2**16
+##    elif prec in [300,350]:
+##        typecode='L'
+        val_max=2**32
+    elif prec in [600,650]:
+        typecode='f'
+        val_max=1
+##    else: raise TypeError("Invalid size for pixel value")
+    else: raise TypeError("Invalid precision: "+str(prec)+
+                          " (bpp="+str(layer_src.bpp)+")")
+
+    if layer_src.is_rgb: cols=3
+    else: cols=1
+    if layer_src.has_alpha: cols+=1
+
+##    cols,bpc=color_depth(layer_dst)
+##    val_max=2**(8*bpc)
+##    if bpc==1: typecode='B'
+##    elif bpc==2: typecode='H'
+##    elif bpc==4: typecode='L'
+##    else: raise TypeError("Invalid size for pixel value")
 
     reg_src=layer_src.get_pixel_rgn(0, 0, layer_src.width, layer_src.height)
     reg_dst=layer_dst.get_pixel_rgn(0, 0, layer_dst.width, layer_dst.height)
-##    a_src=array(typecode,reg_src[0:reg_src.w, 0:reg_src.h])
-##    a_dst=array(typecode,reg_src[0:reg_dst.w, 0:reg_dst.h])
     a_src=array(typecode,reg_src[:,:])
     a_dst=array(typecode,reg_src[:,:])
 
@@ -80,55 +103,29 @@ def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
             G=float(a_src[pixel+1])/val_max
             B=float(a_src[pixel+2])/val_max
 
-        color[0]=int(eval(expr_r)*val_max)
+##        color[0]=int(eval(expr_r)*val_max)
+##        if cols > 1:
+##            color[1]=int(eval(expr_g)*val_max)
+##            color[2]=int(eval(expr_b)*val_max)
+
+        color[0]=eval(expr_r)*val_max
         if cols > 1:
-            color[1]=int(eval(expr_g)*val_max)
-            color[2]=int(eval(expr_b)*val_max)
+            color[1]=eval(expr_g)*val_max
+            color[2]=eval(expr_b)*val_max
 
         for i in range(len(color)):
-            if color[i] >= val_max: color[i]=val_max-1
-            if color[i] < 0 : color[i]=0
+            if typecode in "BHL":
+                color[i]=int(color[i])
+                if color[i] >= val_max: color[i]=val_max-1
+                if color[i] < 0 : color[i]=0
             a_dst[pixel+i]=color[i]
 
         count+=1
         if count % (1<<16) == 0:
             pdb.gimp_progress_update(float(count)*cols/len(a_src))
 
-#    reg_dst[0:reg_dst.w, 0:reg_dst.h]=a_dst.tostring()
     reg_dst[:,:]=a_dst.tostring()
-    #print(count)
         
-##    for y in range(reg_dst.h):
-##        for x in range(reg_dst.w):
-##            if bpc==1: pixel=array('B',reg_src[x,y])
-##            elif bpc==2: pixel=array('H',reg_src[x,y])
-##            elif bpc==4: pixel=array('L',reg_src[x,y])
-##            else: raise TypeError("Invalid size for pixel value")
-##
-##            R=float(pixel[0])/val_max
-##            if cols > 1:
-##                G=float(pixel[1])/val_max
-##                B=float(pixel[2])/val_max
-##
-##            pixel=[int(eval(expr_r)*val_max)]
-##            if cols > 1:
-##                pixel+=[int(eval(expr_g)*val_max)]
-##                pixel+=[int(eval(expr_b)*val_max)]
-##
-##            if cols > 3:
-##                pixel+=[val_max-1]
-##
-##            for n in range(len(pixel)):
-##                if pixel[n]>=val_max: pixel[n]=val_max-1
-##                if pixel[n]<0: pixel[n]=0
-##
-##            if bpc==1: reg_dst[x,y]=array('B',pixel).tostring()
-##            elif bpc==2: reg_dst[x,y]=array('H',pixel).tostring()
-##            elif bpc==4: reg_dst[x,y]=array('L',pixel).tostring()
-##            else: raise TypeError("Invalid size for pixel value")
-##
-##        pdb.gimp_progress_update(float(y)/reg_dst.h)
-
 
 # plugin-function
 def pixel_math(image, draw, rexpr, gexpr, bexpr, name):
