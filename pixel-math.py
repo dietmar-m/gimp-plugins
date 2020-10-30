@@ -4,20 +4,25 @@
 # \author   Dietmar Muscholik <d.muscholik@t-online.de>
 # \date     2020-10-22
 #           started
+#
 # \date     2020-10-24
 #           Expressions are compiled to speed up things a little bit.
 #           Code cleanup.
 #           Copyright notice added.
+#
 # \date     2020-10-26
 #           File header changed to doxygen style
+#
 # \date     2020-10-27
 #           speed improvement by using regions instead of calling
 #           gimp_drawable_get_pixel() and gimp_drawable_set_pixel()
 #           for each pixel
+#
 # \date     2020-10-29
 #           major speed improvement by converting regions to arrays
 #           as a whole
-# \date     2020-10-20
+#
+# \date     2020-10-30
 #           support for floating point precision added
 #
 #    Copyright (C) 2020  Dietmar Muscholik
@@ -41,23 +46,9 @@ from array import *
 from time import *
 
 
-# get the number of colors and the bytes per color from a drawable
-##def color_depth(layer):
-##    if layer.is_rgb:
-##        cols=3
-##    else:
-##        cols=1
-##    if layer.has_alpha:
-##        cols+=1
-##    bpc=layer.bpp/cols
-##    return cols,bpc
-
-
 # do the calculation for each pixel of a drawable
 def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
     prec=pdb.gimp_image_get_precision(layer_src.image)
-##    pdb.gimp_message("precision="+str(prec))
-##    pdb.gimp_message("bpp="+str(layer_src.bpp))
     if prec in [100,150]:
         typecode='B'
         val_max=2**8
@@ -70,20 +61,12 @@ def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
     elif prec in [600,650]:
         typecode='f'
         val_max=1
-##    else: raise TypeError("Invalid size for pixel value")
     else: raise TypeError("Invalid precision: "+str(prec)+
                           " (bpp="+str(layer_src.bpp)+")")
 
     if layer_src.is_rgb: cols=3
     else: cols=1
     if layer_src.has_alpha: cols+=1
-
-##    cols,bpc=color_depth(layer_dst)
-##    val_max=2**(8*bpc)
-##    if bpc==1: typecode='B'
-##    elif bpc==2: typecode='H'
-##    elif bpc==4: typecode='L'
-##    else: raise TypeError("Invalid size for pixel value")
 
     reg_src=layer_src.get_pixel_rgn(0, 0, layer_src.width, layer_src.height)
     reg_dst=layer_dst.get_pixel_rgn(0, 0, layer_dst.width, layer_dst.height)
@@ -102,11 +85,6 @@ def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
         if cols > 1:
             G=float(a_src[pixel+1])/val_max
             B=float(a_src[pixel+2])/val_max
-
-##        color[0]=int(eval(expr_r)*val_max)
-##        if cols > 1:
-##            color[1]=int(eval(expr_g)*val_max)
-##            color[2]=int(eval(expr_b)*val_max)
 
         color[0]=eval(expr_r)*val_max
         if cols > 1:
