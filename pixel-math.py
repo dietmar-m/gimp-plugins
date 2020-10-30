@@ -25,6 +25,9 @@
 # \date     2020-10-30
 #           support for floating point precision added
 #
+# \date     2020-10-30
+#           tiny bug fixed
+#
 #    Copyright (C) 2020  Dietmar Muscholik
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -57,7 +60,7 @@ def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
         val_max=2**16
 ##    elif prec in [300,350]:
 ##        typecode='L'
-        val_max=2**32
+##        val_max=2**32
     elif prec in [600,650]:
         typecode='f'
         val_max=1
