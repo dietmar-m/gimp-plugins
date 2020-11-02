@@ -28,6 +28,10 @@
 # \date     2020-10-30
 #           tiny bug fixed
 #
+# \date     2020-11-02
+#           support for channels and layers with alpha-channels
+#           if something went wrong no layer/channel is added to the image
+#
 #    Copyright (C) 2020  Dietmar Muscholik
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -50,8 +54,8 @@ from time import *
 
 
 # do the calculation for each pixel of a drawable
-def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
-    prec=pdb.gimp_image_get_precision(layer_src.image)
+def calc_draw(draw_src, draw_dst, expr_r, expr_g, expr_b, expr_a):
+    prec=pdb.gimp_image_get_precision(draw_src.image)
     if prec in [100,150]:
         typecode='B'
         val_max=2**8
@@ -65,14 +69,16 @@ def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
         typecode='f'
         val_max=1
     else: raise TypeError("Invalid precision: "+str(prec)+
-                          " (bpp="+str(layer_src.bpp)+")")
+                          " (bpp="+str(draw_src.bpp)+")")
 
-    if layer_src.is_rgb: cols=3
+    is_rgb=draw_dst.is_rgb
+    has_alpha=draw_dst.has_alpha
+    if is_rgb: cols=3
     else: cols=1
-    if layer_src.has_alpha: cols+=1
+    if has_alpha: cols+=1
 
-    reg_src=layer_src.get_pixel_rgn(0, 0, layer_src.width, layer_src.height)
-    reg_dst=layer_dst.get_pixel_rgn(0, 0, layer_dst.width, layer_dst.height)
+    reg_src=draw_src.get_pixel_rgn(0, 0, draw_src.width, draw_src.height)
+    reg_dst=draw_dst.get_pixel_rgn(0, 0, draw_dst.width, draw_dst.height)
     a_src=array(typecode,reg_src[:,:])
     a_dst=array(typecode,reg_src[:,:])
 
@@ -85,14 +91,18 @@ def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
 
     for pixel in range(0, len(a_src), cols):
         R=float(a_src[pixel])/val_max
-        if cols > 1:
+        if is_rgb:
             G=float(a_src[pixel+1])/val_max
             B=float(a_src[pixel+2])/val_max
-
+        if has_alpha:
+            A=float(a_src[pixel+cols-1])/val_max
+            
         color[0]=eval(expr_r)*val_max
-        if cols > 1:
+        if is_rgb:
             color[1]=eval(expr_g)*val_max
             color[2]=eval(expr_b)*val_max
+        if has_alpha:
+            color[cols-1]=eval(expr_a)*val_max
 
         for i in range(len(color)):
             if typecode in "BHL":
@@ -109,32 +119,53 @@ def calc_layer(layer_src, layer_dst, expr_r, expr_g, expr_b):
         
 
 # plugin-function
-def pixel_math(image, draw, rexpr, gexpr, bexpr, name):
+def pixel_math(image, draw_src, rexpr, gexpr, bexpr, aexpr, name):
     try:
         rexpr=compile(rexpr,"<STRING>","eval")
         gexpr=compile(gexpr,"<STRING>","eval")
         bexpr=compile(bexpr,"<STRING>","eval")
+        aexpr=compile(aexpr,"<STRING>","eval")
     except Exception as e:
         pdb.gimp_message(str(e))
         return
 
     pdb.gimp_plugin_enable_precision()
-    layer=pdb.gimp_image_get_layer_by_name(image,name)
-    if layer==None:
-        layer=pdb.gimp_layer_new(image,
-                                 pdb.gimp_drawable_width(draw),
-                                 pdb.gimp_drawable_height(draw),
-                                 pdb.gimp_drawable_type(draw),
-                                 name,
-                                 100,
-                                 pdb.gimp_layer_get_mode(draw))
-        pdb.gimp_image_insert_layer(image,layer,None,0)
+    if pdb.gimp_item_is_layer(draw_src):
+        print("drawable is layer")
+        draw_dst=pdb.gimp_image_get_layer_by_name(image,name)
+        if draw_dst==None:
+            draw_dst=pdb.gimp_layer_new(image,
+                                        pdb.gimp_drawable_width(draw_src),
+                                        pdb.gimp_drawable_height(draw_src),
+                                        pdb.gimp_drawable_type(draw_src),
+                                        name,
+                                        100,
+                                        pdb.gimp_layer_get_mode(draw_src))
+    elif pdb.gimp_item_is_channel(draw_src):
+        print("drawable is channel")
+        draw_dst=pdb.gimp_image_get_channel_by_name(image,name)
+        if draw_dst==None:
+            draw_dst=pdb.gimp_channel_new(image,
+                                          pdb.gimp_drawable_width(draw_src),
+                                          pdb.gimp_drawable_height(draw_src),
+                                          name,
+                                          100,
+                                          pdb.gimp_channel_get_color(draw_src))
+    else:
+        pdb.gimp_message("Drawable type not supported")
+        return
         
     t_start=time()
     try:
-        calc_layer(draw,layer,rexpr,gexpr,bexpr)
+        calc_draw(draw_src, draw_dst, rexpr, gexpr, bexpr, aexpr)
+        if pdb.gimp_item_is_layer(draw_dst):
+            pdb.gimp_image_insert_layer(image,draw_dst,None,0)
+        else:
+            pdb.gimp_image_insert_channel(image,draw_dst,None,0)
+
     except Exception as e:
         pdb.gimp_message(str(e))
+        pdb.gimp_item_delete(draw_dst)
     t_end=time()
     print(t_end-t_start)
 
@@ -155,7 +186,8 @@ register(
         (PF_STRING,   "red",      "R:",             "R"),
         (PF_STRING,   "green",    "G:",             "G"),
         (PF_STRING,   "blue",     "B:",             "B"),
-        (PF_STRING,   "layer",    "Layer:",         "pixel_math"),
+        (PF_STRING,   "alpha",    "A:",             "A"),
+        (PF_STRING,   "drawable", "Layer/Channel:", "pixel-math"),
         ],
     [],
     pixel_math,
